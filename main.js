@@ -2,81 +2,113 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-camera.position.set(5, 5, 10);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const camera = new THREE.PerspectiveCamera(75,
+innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
+camera.position.z = 5;
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-
-const planeGeometry = new THREE.PlaneGeometry(20, 20);
-const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-plane.rotation.x = Math.PI / 2;
-scene.add(plane);
-
-// Cubos
-const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-cube.position.set(-3, 0.8, 0);
-scene.add(cube);
-
-const cubeLarge = cube.clone();
-cubeLarge.scale.set(2, 2, 2);
-cubeLarge.position.z = -3;
-scene.add(cubeLarge);
-
-cube.rotation.set(Math.PI / 4, 0, Math.PI / 4);
-
-// Esferas
-const sphereGeometry = new THREE.SphereGeometry(0.75, 32, 32);
-const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-sphere.position.set(0, 1.2, 0);
-scene.add(sphere);
-
-const sphereLarge = sphere.clone();
-sphereLarge.scale.set(2, 2, 2);
-sphereLarge.position.z = -3;
-scene.add(sphereLarge);
-
-// Cones
-const coneGeometry = new THREE.ConeGeometry(0.7, 2, 32);
-const coneMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-const cone = new THREE.Mesh(coneGeometry, coneMaterial);
-cone.position.set(3, 1.2, 0);
-scene.add(cone);
-
-const coneRotated = cone.clone();
-coneRotated.rotation.x = Math.PI / 2;
-coneRotated.position.x += 2;
-scene.add(coneRotated);
-
-const coneLarge = cone.clone();
-coneLarge.scale.set(2, 2, 2);
-coneLarge.position.z = -3;
-scene.add(coneLarge);
-
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
+const buttons = [];
+for(let i = 0; i < 3; i++) {
+  const geom = new THREE.CircleGeometry(0.5, 0.5, 0.5);
+  const mat = new THREE.MeshStandardMaterial({color: 0x0077ff});
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.x = (i - 1) * 1.2;
+  scene.add(mesh);
+  buttons.push(mesh);
 }
 
-animate();
+const light = new THREE.AmbientLight(0xffffff, 1);
+scene.add(light);
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+buttons.forEach((btn, i) => {
+  
+  const up = { y: btn.position.y + 0.3 };
+  const down = { y: btn.position.y - 0.3 };
+
+  let valueToUp = i % 2 == 0 ? 1000 : 2000
+
+  function floatUp() {
+    new TWEEN.Tween(btn.position)
+      .to(up, valueToUp)
+      .easing(TWEEN.Easing.Sinusoidal.InOut)
+      .onComplete(floatDown)
+      .start();
+  }
+
+  let valueToDown = i % 2 == 0 ? 1000 : 2000
+
+  function floatDown() {
+    new TWEEN.Tween(btn.position)
+      .to(down, valueToDown)
+      .easing(TWEEN.Easing.Sinusoidal.InOut)
+      .onComplete(floatUp)
+      .start();
+    }
+  floatUp();
+
+  window.addEventListener('click', (e) => {
+    const mouse = new THREE.Vector2(
+    (e.clientX / innerWidth) * 2 - 1,
+    -(e.clientY / innerHeight) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(buttons);
+      if(intersects.length) {
+        const m = intersects[0].object.material;
+        new TWEEN.Tween(m.color)
+          .to({ r: 1, g: 0, b: 0 }, 500)
+          .yoyo(true).repeat(1)
+          .start();
+      }
+    });
+
+  let hoveredObject = null;
+
+  window.addEventListener('mousemove', (e) => {
+    const mouse = new THREE.Vector2(
+      (e.clientX / innerWidth) * 2 - 1,
+      -(e.clientY / innerHeight) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(buttons);
+
+    if (intersects.length > 0) {
+      const object = intersects[0].object;
+
+      if (hoveredObject !== object) {
+        if (hoveredObject) {
+          new TWEEN.Tween(hoveredObject.material.color)
+            .to({ r: 1, g: 1, b: 1 }, 300) 
+            .start();
+        }
+
+        hoveredObject = object;
+        new TWEEN.Tween(object.material.color)
+          .to({ r: 0, g: 1, b: 0 }, 300) 
+          .start();
+      }
+    } else {
+      if (hoveredObject) {
+        new TWEEN.Tween(hoveredObject.material.color)
+          .to({ r: 0, g: 0.2, b: 1 }, 300)
+          .start();
+        hoveredObject = null;
+      }
+    }
+  });
+
 });
+
+  function animate(time) {
+    requestAnimationFrame(animate);
+    TWEEN.update(time);
+    renderer.render(scene, camera);
+  }
+animate();
